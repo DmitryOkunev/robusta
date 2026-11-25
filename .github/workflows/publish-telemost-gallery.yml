@@ -1,0 +1,37 @@
+name: Publish Telemost gallery image
+
+on:
+  push:
+    branches:
+      - release/telemost-gallery
+    paths:
+      - .github/workflows/publish-telemost-gallery.yml
+
+jobs:
+  publish:
+    if: github.repository == 'DmitryOkunev/robusta'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SOURCE_REVISION: 59483a1a505ceb58180f8b543c41cc8e71a57c7b
+      IMAGE: ghcr.io/dmitryokunev/robusta-runner
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 59483a1a505ceb58180f8b543c41cc8e71a57c7b
+          persist-credentials: false
+      - name: Build runner
+        run: |
+          docker build --platform linux/amd64 \
+            --label org.opencontainers.image.source=https://github.com/DmitryOkunev/robusta \
+            --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
+            --tag "$IMAGE:telemost-${SOURCE_REVISION:0:7}" .
+      - name: Publish runner
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:telemost-${SOURCE_REVISION:0:7}"
